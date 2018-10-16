@@ -8,6 +8,8 @@
 #define DC_MAX_QUANTED 2047
 #define DC_MIN_QUANTED -2048
 
+#define UV_PARAM
+
 typedef struct tagHUFFCODE
 {
 	unsigned short code;
@@ -18,15 +20,23 @@ typedef struct tagHUFFCODE
 typedef struct tagJPEGINFO
 {
 	float YQT_DCT[DCTBLOCKSIZE];
+#ifdef UV_PARAM
 	float UVQT_DCT[DCTBLOCKSIZE];
+#endif
 	unsigned char YQT[DCTBLOCKSIZE];
+#ifdef UV_PARAM
 	unsigned char UVQT[DCTBLOCKSIZE];
+#endif
 	unsigned char VLI_TAB[4096];
 	unsigned char* pVLITAB;
 	HUFFCODE STD_DC_Y_HT[12];
+#ifdef UV_PARAM
 	HUFFCODE STD_DC_UV_HT[12];
+#endif
 	HUFFCODE STD_AC_Y_HT[256];
+#ifdef UV_PARAM
 	HUFFCODE STD_AC_UV_HT[256];
+#endif
 	unsigned char bytenew;
 	char bytepos;
 }JPEGINFO;	
@@ -165,12 +175,14 @@ typedef struct tagJPEGSOF0_24BITS{
 	unsigned char YID;
 	unsigned char HVY;
 	unsigned char QTY;
+#ifdef UV_PARAM
 	unsigned char UID;
 	unsigned char HVU;
 	unsigned char QTU;
 	unsigned char VID;
 	unsigned char HVV;
 	unsigned char QTV;
+#endif
 }JPEGSOF0_24BITS;
 
 typedef struct tagJPEGDHT{
@@ -186,10 +198,12 @@ typedef struct tagJPEGSOS_24BITS{
 	unsigned char sigNum;
 	unsigned char YID;
 	unsigned char HTY;
+#ifdef UV_PARAM
 	unsigned char UID;
 	unsigned char HTU;
 	unsigned char VID;
 	unsigned char HTV;
+#endif
 	unsigned char Ss;
 	unsigned char Se;
 	unsigned char Bf;

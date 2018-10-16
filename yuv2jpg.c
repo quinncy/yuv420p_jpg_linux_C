@@ -105,6 +105,7 @@ void InitQTForAANDCT(JPEGINFO *pJpgInfo)
 		}
 	} 
 	
+#ifdef UV_PARAM
 	k = 0;
 	for (i = 0; i < DCTSIZE; i++)  
 	{
@@ -114,7 +115,8 @@ void InitQTForAANDCT(JPEGINFO *pJpgInfo)
 				aanScaleFactor[i] * aanScaleFactor[j] * 8.0));       
 			++k;
 		}
-	} 
+	}
+#endif
 }
 
 unsigned char ComputeVLI(short val)
@@ -250,6 +252,8 @@ int WriteDQT(JPEGINFO *pJpgInfo,unsigned char* pOut,int nDataLen)
 	memcpy(pOut+nDataLen+5,DQT_Y.table,64);
 
 	nDataLen += sizeof(DQT_Y)-1;
+
+#ifdef UV_PARAM
 	DQT_Y.tableInfo  = 0x01;
 	for (i = 0; i < DCTBLOCKSIZE; i++)
 	{
@@ -261,6 +265,8 @@ int WriteDQT(JPEGINFO *pJpgInfo,unsigned char* pOut,int nDataLen)
 	*(pOut+nDataLen+4) = DQT_Y.tableInfo;
 	memcpy(pOut+nDataLen+5,DQT_Y.table,64);
 	nDataLen += sizeof(DQT_Y)-1;
+#endif
+
 	return nDataLen;
 }
 
@@ -278,20 +284,31 @@ int WriteSOF(unsigned char* pOut,int nDataLen,int width,int height)
 {
 	JPEGSOF0_24BITS SOF;
 	SOF.segmentTag = 0xC0FF;
+#ifdef UV_PARAM
 	SOF.length   = 0x1100;
+#else
+	SOF.length   = 0x0B00;
+#endif
 	SOF.precision  = 0x08;
 	SOF.height   = Intel2Moto((unsigned short)height);
 	SOF.width    = Intel2Moto((unsigned short)width); 
+#ifdef UV_PARAM
 	SOF.sigNum   = 0x03;
+#else
+	SOF.sigNum   = 0x01;
+#endif
 	SOF.YID     = 0x01; 
 	SOF.QTY     = 0x00;
+	SOF.HVY   	= 0x11;
+#ifdef UV_PARAM
 	SOF.UID     = 0x02;
 	SOF.QTU     = 0x01;
 	SOF.VID     = 0x03;
 	SOF.QTV     = 0x01;
 	SOF.HVU     = 0x11;
 	SOF.HVV     = 0x11;
-	SOF.HVY   = 0x11;
+#endif
+	
 //	memcpy(pOut + nDataLen,&SOF,sizeof(SOF));
 	memcpy(pOut+nDataLen,&SOF.segmentTag,2);
 	memcpy(pOut+nDataLen+2,&SOF.length,2);
@@ -302,12 +319,14 @@ int WriteSOF(unsigned char* pOut,int nDataLen,int width,int height)
 	*(pOut+nDataLen+10) = SOF.YID;
 	*(pOut+nDataLen+11) = SOF.HVY;
 	*(pOut+nDataLen+12) = SOF.QTY;
+#ifdef UV_PARAM
 	*(pOut+nDataLen+13) = SOF.UID;
 	*(pOut+nDataLen+14) = SOF.HVU;
 	*(pOut+nDataLen+15) = SOF.QTU;
 	*(pOut+nDataLen+16) = SOF.VID;
 	*(pOut+nDataLen+17) = SOF.HVV;
 	*(pOut+nDataLen+18) = SOF.QTV;
+#endif
 	return nDataLen + sizeof(SOF)-1;
 }
 
@@ -339,7 +358,9 @@ int WriteDHT(unsigned char* pOut,int nDataLen)
 	for (i = 0; i <= 11; i++)
 	{
 		nDataLen = WriteByte(STD_DC_Y_VALUES[i],pOut,nDataLen);  
-	}  
+	}
+	
+#ifdef UV_PARAM
 	DHT.tableInfo  = 0x01;
 	for (i = 0; i < 16; i++)
 	{
@@ -355,6 +376,8 @@ int WriteDHT(unsigned char* pOut,int nDataLen)
 	{
 		nDataLen = WriteByte(STD_DC_UV_VALUES[i],pOut,nDataLen);  
 	} 
+#endif
+
 	DHT.length   = Intel2Moto(19 + 162);
 	DHT.tableInfo  = 0x10;
 	for (i = 0; i < 16; i++)
@@ -371,6 +394,8 @@ int WriteDHT(unsigned char* pOut,int nDataLen)
 	{
 		nDataLen = WriteByte(STD_AC_Y_VALUES[i],pOut,nDataLen);  
 	}  
+
+#ifdef UV_PARAM
 	DHT.tableInfo  = 0x11;
 	for (i = 0; i < 16; i++)
 	{
@@ -386,6 +411,8 @@ int WriteDHT(unsigned char* pOut,int nDataLen)
 	{
 		nDataLen = WriteByte(STD_AC_UV_VALUES[i],pOut,nDataLen);  
 	}
+#endif
+
 	return nDataLen;
 }
 
@@ -394,14 +421,21 @@ int WriteSOS(unsigned char* pOut,int nDataLen)
 {
 	JPEGSOS_24BITS SOS;
 	SOS.segmentTag   = 0xDAFF;
+#ifdef UV_PARAM
 	SOS.length    = 0x0C00;
 	SOS.sigNum    = 0x03;
+#else
+	SOS.length	  = 0x0800;
+	SOS.sigNum    = 0x01;
+#endif
 	SOS.YID     = 0x01;
 	SOS.HTY     = 0x00;
+#ifdef UV_PARAM
 	SOS.UID     = 0x02;
 	SOS.HTU     = 0x11;
 	SOS.VID     = 0x03;
 	SOS.HTV     = 0x11;
+#endif
 	SOS.Se     = 0x3F;
 	SOS.Ss     = 0x00;
 	SOS.Bf     = 0x00;
@@ -728,8 +762,13 @@ int ProcessData(JPEGINFO *pJpgInfo,unsigned char* lpYBuf,unsigned char* lpUBuf,u
 	unsigned int p    = 0;
 	unsigned int m    = 0;
 	unsigned int n    = 0;
-	unsigned int s    = 0; 
-	mcuNum = (height * width * 3)/(DCTBLOCKSIZE * 3);         
+	unsigned int s    = 0;
+
+#ifdef UV_PARAM
+	mcuNum = (height * width * 3)/(DCTBLOCKSIZE * 3);
+#else
+	mcuNum = (height * width)/(DCTBLOCKSIZE);
+#endif
 	for (p = 0;p < mcuNum; p++)       
 	{
 		yCounter = 1;//MCUIndex[SamplingType][0];   
@@ -751,7 +790,8 @@ int ProcessData(JPEGINFO *pJpgInfo,unsigned char* lpYBuf,unsigned char* lpUBuf,u
 				break;
 			}
 		}  
-
+		
+#ifdef UV_PARAM
 		//------------------------------------------------------------------  
 		for (; m < uBufLen; m += DCTBLOCKSIZE)
 		{
@@ -785,7 +825,8 @@ int ProcessData(JPEGINFO *pJpgInfo,unsigned char* lpYBuf,unsigned char* lpUBuf,u
 			{
 				break;
 			}
-		}  
+		}
+#endif
 	} 
 	return nDataLen;
 }
@@ -827,17 +868,21 @@ int YUV2Jpg(unsigned char* in_Y,unsigned char* in_U,unsigned char* in_V,int widt
 	//memcpy(pVBuf,in_V,nUVLen);
 	//memset(pUBuf,0,nYLen/4);
 	//memset(pVBuf,0,nYLen/4);
-	
+#ifdef UV_PARAM	
 	ProcessUV(pUBuf,in_U,width,height,nStride);
 	ProcessUV(pVBuf,in_V,width,height,nStride);
+#endif
 	printf("-------------------------------5\n");
 	DivBuff(pYBuf,width,height,nStride,DCTSIZE,DCTSIZE);
+#ifdef UV_PARAM	
 	DivBuff(pUBuf,width,height,nStride,DCTSIZE,DCTSIZE);
 	DivBuff(pVBuf,width,height,nStride,DCTSIZE,DCTSIZE);
+#endif
 	quality = QualityScaling(quality);
 	SetQuantTable(std_Y_QT,JpgInfo->YQT, quality);
+#ifdef UV_PARAM
 	SetQuantTable(std_UV_QT,JpgInfo->UVQT,quality); 
-	
+#endif	
 	InitQTForAANDCT(JpgInfo);
 	JpgInfo->pVLITAB=JpgInfo->VLI_TAB +2048;  
 	BuildVLITable(JpgInfo);          
@@ -854,8 +899,10 @@ int YUV2Jpg(unsigned char* in_Y,unsigned char* in_U,unsigned char* in_V,int widt
 	printf("------------------------------1\n");
 	BuildSTDHuffTab(STD_DC_Y_NRCODES,STD_DC_Y_VALUES,JpgInfo->STD_DC_Y_HT);
 	BuildSTDHuffTab(STD_AC_Y_NRCODES,STD_AC_Y_VALUES,JpgInfo->STD_AC_Y_HT);
+#ifdef UV_PARAM
 	BuildSTDHuffTab(STD_DC_UV_NRCODES,STD_DC_UV_VALUES,JpgInfo->STD_DC_UV_HT);
 	BuildSTDHuffTab(STD_AC_UV_NRCODES,STD_AC_UV_VALUES,JpgInfo->STD_AC_UV_HT);
+#endif
 	printf("-----------------------------3\n");
 	nDataLen = ProcessData(JpgInfo,pYBuf,pUBuf,pVBuf,width,height,nYLen,nYLen,nYLen,pOut,nDataLen);  
 	nDataLen = WriteEOI(pOut,nDataLen);
